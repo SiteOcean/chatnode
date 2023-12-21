@@ -26,6 +26,7 @@ mongoose.connect(MONGODB_URI, {
   useUnifiedTopology: true,
 });
 
+
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 db.once('open', () => {
@@ -35,6 +36,10 @@ db.once('open', () => {
 app.use(express.json());
 
 const activeSockets = {};
+
+app.get('/test', (req, res) => {
+  res.json({ message: 'Test API is working!' });
+});
 
 // API to retrieve chat history between two users
 app.get('/api/chat/:userId1/:userId2', async (req, res) => {
