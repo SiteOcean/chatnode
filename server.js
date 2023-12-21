@@ -6,14 +6,18 @@ const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
 require('dotenv').config();
+
+// Use 'server' instead of 'httpServer'
 const io = socketIO(server, {
   cors: {
-    origin: 'https://chat-app-steel-theta.vercel.app/',
+    origin: 'https://chat-app-steel-theta.vercel.app',
     methods: ['GET', 'POST'],
-    credentials: true,
+    credentials: true, // Allow credentials (cookies) to be included
   },
 });
+
 app.use(cors());
+
 const User = require('./models/users');
 const Message = require('./models/message');
 
