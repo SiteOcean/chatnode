@@ -8,7 +8,7 @@ const server = http.createServer(app);
 require('dotenv').config();
 const io = socketIO(server, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: 'https://chat-app-steel-theta.vercel.app',
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -18,8 +18,8 @@ const User = require('./models/users');
 const Message = require('./models/message');
 
 const PORT = process.env.PORT || 5000;
-// const MONGODB_URI = 'mongodb://127.0.0.1:27017/admin';
-const MONGODB_URI = process.env.MONGO_DB_URL
+const MONGODB_URI = 'mongodb://127.0.0.1:27017/admin';
+// const MONGODB_URI = process.env.MONGO_DB_URL
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
