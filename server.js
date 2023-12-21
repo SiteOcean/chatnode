@@ -8,7 +8,7 @@ const server = http.createServer(app);
 require('dotenv').config();
 const io = socketIO(server, {
   cors: {
-    origin: 'https://chat-app-steel-theta.vercel.app',
+    origin: 'https://chat-app-steel-theta.vercel.app/',
     methods: ['GET', 'POST'],
     credentials: true,
   },
