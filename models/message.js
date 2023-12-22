@@ -4,7 +4,8 @@ const messageSchema = new mongoose.Schema({
   from: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   to: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   message: { type: String, required: true },
-  username: { type: String, required: true }, // Add the username field
+  username: { type: String, required: true },
+  timestamp: { type: String, required: true }, // Change the type to String
 });
 
 // Use the model method directly on mongoose

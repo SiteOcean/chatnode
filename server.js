@@ -11,6 +11,7 @@ require('dotenv').config();
 const io = socketIO(server, {
   cors: {
     origin: 'https://chat-app-steel-theta.vercel.app',
+    // origin:'http://localhost:3000',
     methods: ['GET', 'POST'],
     credentials: true, // Allow credentials (cookies) to be included
   },
@@ -22,8 +23,8 @@ const User = require('./models/users');
 const Message = require('./models/message');
 
 const PORT = process.env.PORT || 5000;
-// const MONGODB_URI = 'mongodb://127.0.0.1:27017/admin';
-const MONGODB_URI = process.env.MONGO_DB_URL
+const MONGODB_URI = 'mongodb://127.0.0.1:27017/admin';
+// const MONGODB_URI = process.env.MONGO_DB_URL
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
@@ -72,23 +73,24 @@ app.get('/api/chat/:userId1/:userId2', async (req, res) => {
   }
 });
 
+
 io.on('connection', (socket) => {
   console.log('A user connected');
 
   // Private Message Event
   socket.on('private-message', async (data) => {
-    const { from, to, message, username } = data; // Extract username from data
+    const { from, to, message, username } = data;
 
     const emitPrivateMessage = (socketId, data) => {
       io.to(socketId).emit('private-message', data);
     };
 
     // Emit the private message to the sender and recipient
-    emitPrivateMessage(activeSockets[from], { from, to, message, username });
-    emitPrivateMessage(activeSockets[to], { from, to, message, username });
+    emitPrivateMessage(activeSockets[from], { from, to, message, username, timestamp: new Date().toISOString() });
+    emitPrivateMessage(activeSockets[to], { from, to, message, username, timestamp: new Date().toISOString() });
 
     // Save the message to the database
-    const newMessage = new Message({ from, to, message, username }); // Include username
+    const newMessage = new Message({ from, to, message, username, timestamp: new Date() });
     try {
       const savedMessage = await newMessage.save();
       console.log('Private message saved to the database:', savedMessage);
@@ -111,6 +113,7 @@ io.on('connection', (socket) => {
     delete activeSockets[userId];
   });
 });
+
 
 async function clearAllMessages() {
   try {
@@ -153,7 +156,7 @@ app.post('/api/users', async (req, res) => {
   try {
     const newUser = new User({ username, password });
     await newUser.save();
-    res.status(201).json({ message: 'User account created successfully' });
+    res.status(200).json({ message: 'User account created successfully' });
   } catch (error) {
     console.error('Failed to create user account:', error);
     res.status(500).json({ error: 'Failed to create user account' });
