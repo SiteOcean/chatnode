@@ -73,6 +73,61 @@ app.get('/api/chat/:userId1/:userId2', async (req, res) => {
   }
 });
 
+app.get('/api/usersdata', async (req, res) => {
+  try {
+    const loginUserId = req.query.loginUserId;
+
+    if (!loginUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing loginUserId parameter',
+      });
+    }
+
+    const loggedInUser = await User.findById(loginUserId);
+
+    if (!loggedInUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const users = await User.find({ _id: { $ne: loggedInUser._id } });
+    
+    // Fetch unread message count for each user in relation to the logged-in user
+    const usersWithUnreadMessages = await Promise.all(
+      users.map(async (user) => {
+        const unreadMessageCount = await Message.countDocuments({
+          to: loggedInUser._id,
+          from: user._id,
+          read: false,
+        });
+
+        return {
+          _id: user._id,
+          username: user.username,
+          email: user.email,
+          // Add more user fields as needed
+          unreadMessageCount,
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Users data retrieved successfully',
+      users: usersWithUnreadMessages,
+    });
+  } catch (error) {
+    console.error('Failed to retrieve users data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve users data',
+      error: error.message,
+    });
+  }
+});
 
 io.on('connection', (socket) => {
   console.log('A user connected');
@@ -97,6 +152,19 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Failed to save private message:', error);
     }
+
+    // Mark existing unread messages as read in the database
+    try {
+      await Message.updateMany(
+        { from: to, to: from, read: false },
+        { $set: { read: true } }
+      );
+    } catch (error) {
+      console.error('Failed to mark messages as read:', error);
+    }
+
+    // Emit read acknowledgment to the sender
+    emitPrivateMessage(activeSockets[from], { from, to, message, username, timestamp: new Date().toISOString(), read: true });
   });
 
   // Set Active User Event
@@ -115,7 +183,6 @@ io.on('connection', (socket) => {
 });
 
 
-
 async function clearAllMessages() {
   try {
     const result = await Message.deleteMany({});
@@ -129,26 +196,26 @@ async function clearAllMessages() {
 // clearAllMessages();
 
 // API to retrieve a list of all users
-app.get('/api/usersdata', async (req, res) => {
-  try {
-    const users = await User.find();
-    const totalUsers = await User.countDocuments();
+// app.get('/api/usersdata', async (req, res) => {
+//   try {
+//     const users = await User.find();
+//     const totalUsers = await User.countDocuments();
 
-    res.status(200).json({
-      success: true,
-      message: 'Users retrieved successfully',
-      totalUsers,
-      users,
-    });
-  } catch (error) {
-    console.error('Failed to retrieve users:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve users',
-      error: error.message,
-    });
-  }
-});
+//     res.status(200).json({
+//       success: true,
+//       message: 'Users retrieved successfully',
+//       totalUsers,
+//       users,
+//     });
+//   } catch (error) {
+//     console.error('Failed to retrieve users:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to retrieve users',
+//       error: error.message,
+//     });
+//   }
+// });
 
 // API to create a new user account
 app.post('/api/users', async (req, res) => {
@@ -178,6 +245,35 @@ app.post('/api/login', async (req, res) => {
   } catch (error) {
     console.error('Login failed:', error);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.get('/api/makeChatAsRead/:fromUserId/:toUserId', async (req, res) => {
+  try {
+    const fromUserId = req.params.fromUserId;
+    const toUserId = req.params.toUserId;
+
+    // Update messages as read
+    await Message.updateMany(
+      {
+        from: toUserId,
+        to: fromUserId,
+        read: false,
+      },
+      { $set: { read: true } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Messages marked as read successfully',
+    });
+  } catch (error) {
+    console.error('Failed to mark messages as read:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to mark messages as read',
+      error: error.message,
+    });
   }
 });
 
