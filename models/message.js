@@ -5,8 +5,8 @@ const messageSchema = new mongoose.Schema({
   to: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   message: { type: String, required: true },
   username: { type: String, required: true },
-  timestamp: { type: String, required: true }, // Change the type to String
+  timestamp: { type: Date, default: Date.now }, // Change the type to Date
+  read: { type: Boolean, default: false }, // Add read field with default value false
 });
 
-// Use the model method directly on mongoose
 module.exports = mongoose.model('Message', messageSchema);

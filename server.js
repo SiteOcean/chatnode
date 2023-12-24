@@ -17,8 +17,8 @@ const io = socketIO(server, {
   },
 });
 
-app.use(cors());
-
+app.use(cors({ origin: 'https://chat-app-steel-theta.vercel.app' }));
+// app.use(cors({ origin: 'http://localhost:3000' }));
 const User = require('./models/users');
 const Message = require('./models/message');
 
@@ -86,11 +86,11 @@ io.on('connection', (socket) => {
     };
 
     // Emit the private message to the sender and recipient
-    emitPrivateMessage(activeSockets[from], { from, to, message, username, timestamp: new Date().toISOString() });
-    emitPrivateMessage(activeSockets[to], { from, to, message, username, timestamp: new Date().toISOString() });
+    emitPrivateMessage(activeSockets[from], { from, to, message, username, timestamp: new Date().toISOString(), read: true }); // Set read status to true for the sender
+    emitPrivateMessage(activeSockets[to], { from, to, message, username, timestamp: new Date().toISOString(), read: false }); // Set read status to false for the recipient
 
-    // Save the message to the database
-    const newMessage = new Message({ from, to, message, username, timestamp: new Date() });
+    // Save the message to the database with the read status
+    const newMessage = new Message({ from, to, message, username, timestamp: new Date(), read: false }); // Set read status to false
     try {
       const savedMessage = await newMessage.save();
       console.log('Private message saved to the database:', savedMessage);
@@ -113,6 +113,7 @@ io.on('connection', (socket) => {
     delete activeSockets[userId];
   });
 });
+
 
 
 async function clearAllMessages() {
