@@ -59,18 +59,23 @@ app.get('/api/chat/:userId1/:userId2', async (req, res) => {
       },
       { $set: { read: true } }
     );
+
     const messages = await Message.find({
       $or: [
         { from: userId1, to: userId2 },
         { from: userId2, to: userId1 },
       ],
     }).sort({ createdAt: 1 });
-
+   
+     
+   
     res.status(200).json({
       success: true,
       message: 'Chat history retrieved successfully',
       messages,
     });
+
+    // io.to(activeSockets[userId2]).emit('updated-messages', 'success');
   } catch (error) {
     console.error('Failed to retrieve chat history:', error);
     res.status(500).json({
@@ -80,6 +85,8 @@ app.get('/api/chat/:userId1/:userId2', async (req, res) => {
     });
   }
 });
+
+
 
 app.get('/api/usersdata', async (req, res) => {
   try {
@@ -137,6 +144,16 @@ app.get('/api/usersdata', async (req, res) => {
   }
 });
 
+
+// Function to log connected users and emit the information to all sockets
+const logConnectedUsers = () => {
+  const connectedUsers = Object.keys(activeSockets);
+  console.log('Connected Users:', connectedUsers);
+
+  // Emit the connected users to all sockets
+  io.emit('connected-users', connectedUsers);
+};
+
 io.on('connection', (socket) => {
   console.log('A user connected');
 
@@ -178,7 +195,6 @@ io.on('connection', (socket) => {
     const messageId = data._id;
 
     try {
-
       // Update the "read" status to true in the database
       await Message.findByIdAndUpdate(messageId, { $set: { read: true } });
 
@@ -193,14 +209,31 @@ io.on('connection', (socket) => {
     }
   });
 
+
   // Set Active User Event
   socket.on('private-message-test', (userId) => {
     // activeSockets[userId] = socket.id;
     console.log("test", userId);
   });
 
+  // Set Active User Event
   socket.on('set-active-user', (userId) => {
     activeSockets[userId] = socket.id;
+
+    // Log connected users when a new user is set as active
+    logConnectedUsers();
+  });
+
+  // Remove Active User Event
+  socket.on('remove-active-user', (data) => {
+    const { userId } = data;
+    delete activeSockets[userId];
+    
+    // Log connected users when a user is removed
+    logConnectedUsers();
+
+    // Emit the updated list of connected users to all sockets
+    io.emit('connected-users', Object.keys(activeSockets));
   });
 
   // Disconnect Event
@@ -210,8 +243,15 @@ io.on('connection', (socket) => {
     // Remove the user from activeSockets when disconnected
     const userId = Object.keys(activeSockets).find((key) => activeSockets[key] === socket.id);
     delete activeSockets[userId];
+
+    // Log connected users when a user disconnects
+    logConnectedUsers();
+
+    // Emit the updated list of connected users to all sockets
+    io.emit('connected-users', Object.keys(activeSockets));
   });
 });
+
 
 
 
