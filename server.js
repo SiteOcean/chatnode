@@ -23,8 +23,8 @@ const User = require('./models/users');
 const Message = require('./models/message');
 
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = 'mongodb://127.0.0.1:27017/admin';
-// const MONGODB_URI = process.env.MONGO_DB_URL
+// const MONGODB_URI = 'mongodb://127.0.0.1:27017/admin';
+const MONGODB_URI = process.env.MONGO_DB_URL
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
