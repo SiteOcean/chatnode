@@ -51,6 +51,14 @@ app.get('/api/chat/:userId1/:userId2', async (req, res) => {
   const { userId1, userId2 } = req.params;
 
   try {
+    await Message.updateMany(
+      {
+        from: userId2,
+        to: userId1,
+        read: false,
+      },
+      { $set: { read: true } }
+    );
     const messages = await Message.find({
       $or: [
         { from: userId1, to: userId2 },
@@ -140,34 +148,57 @@ io.on('connection', (socket) => {
       io.to(socketId).emit('private-message', data);
     };
 
-    // Emit the private message to the sender and recipient
-    emitPrivateMessage(activeSockets[from], { from, to, message, username, timestamp: new Date().toISOString(), read: true }); // Set read status to true for the sender
-    emitPrivateMessage(activeSockets[to], { from, to, message, username, timestamp: new Date().toISOString(), read: false }); // Set read status to false for the recipient
-
-    // Save the message to the database with the read status
-    const newMessage = new Message({ from, to, message, username, timestamp: new Date(), read: false }); // Set read status to false
     try {
+      // Save the message to the database with the read status
+      const newMessage = new Message({ from, to, message, username, timestamp: new Date(), read: false });
       const savedMessage = await newMessage.save();
-      console.log('Private message saved to the database:', savedMessage);
-    } catch (error) {
-      console.error('Failed to save private message:', error);
-    }
 
-    // Mark existing unread messages as read in the database
-    try {
+      // Emit the private message to the sender and recipient with _id
+      emitPrivateMessage(activeSockets[from], { ...savedMessage.toObject(), read: true }); // Set read status to true for the sender
+      emitPrivateMessage(activeSockets[to], { ...savedMessage.toObject(), read: false }); // Set read status to false for the recipient
+
+      // Mark existing unread messages as read in the database
       await Message.updateMany(
         { from: to, to: from, read: false },
         { $set: { read: true } }
       );
-    } catch (error) {
-      console.error('Failed to mark messages as read:', error);
-    }
 
-    // Emit read acknowledgment to the sender
-    emitPrivateMessage(activeSockets[from], { from, to, message, username, timestamp: new Date().toISOString(), read: true });
+      // Emit read acknowledgment to the sender with _id
+      emitPrivateMessage(activeSockets[from], { ...savedMessage.toObject(), read: true });
+
+      // Emit acknowledgment to the sender with the server response
+      io.to(socket.id).emit('private-message-acknowledgment', savedMessage.toObject());
+    } catch (error) {
+      console.error('Failed to save private message:', error);
+    }
+  });
+
+  // Readed Private Message Event
+  socket.on('readed-private-message', async (data) => {
+    const messageId = data._id;
+
+    try {
+
+      // Update the "read" status to true in the database
+      await Message.findByIdAndUpdate(messageId, { $set: { read: true } });
+
+      // Find the sender and recipient of the message
+      const message = await Message.findById(messageId);
+      const recipientSocketId = activeSockets[message.from];
+
+      // Emit read acknowledgment to the recipient with _id
+      io.to(recipientSocketId).emit('readed-private-message-acknowledgment', { _id: messageId });
+    } catch (error) {
+      console.error('Failed to update read status:', error);
+    }
   });
 
   // Set Active User Event
+  socket.on('private-message-test', (userId) => {
+    // activeSockets[userId] = socket.id;
+    console.log("test", userId);
+  });
+
   socket.on('set-active-user', (userId) => {
     activeSockets[userId] = socket.id;
   });
@@ -181,6 +212,7 @@ io.on('connection', (socket) => {
     delete activeSockets[userId];
   });
 });
+
 
 
 async function clearAllMessages() {
