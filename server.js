@@ -154,8 +154,13 @@ const logConnectedUsers = () => {
   io.emit('connected-users', connectedUsers);
 };
 
+const logConnectedUsersR = () => {
+  const connectedUsers = Object.keys(activeSockets);
+  console.log('Connected Users:', connectedUsers);
+};
+
 io.on('connection', (socket) => {
-  console.log('A user connected');
+  console.log('socket On');
 
   // Private Message Event
   socket.on('private-message', async (data) => {
@@ -193,7 +198,7 @@ io.on('connection', (socket) => {
   // Readed Private Message Event
   socket.on('readed-private-message', async (data) => {
     const messageId = data._id;
-
+   
     try {
       // Update the "read" status to true in the database
       await Message.findByIdAndUpdate(messageId, { $set: { read: true } });
@@ -207,6 +212,28 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Failed to update read status:', error);
     }
+  });
+
+    // Make Messages Read Event
+    socket.on('make-messages-readed', (data) => {
+      const { toId, fromId } = data;
+   
+      // Check if the target user is online
+      const targetSocketId = activeSockets[toId];
+      if (targetSocketId) {
+        // Emit a custom event to notify the target user that messages have been read
+        io.to(targetSocketId).emit('messages-readed', { fromId: fromId });
+      }
+    });
+
+   // Remove Active User Event
+   socket.on('remove-active-user', (data) => {
+    const { userId } = data;
+    console.log('Removing user:', userId);
+    delete activeSockets[userId];
+
+    // Log connected users when a user is removed
+    logConnectedUsers();
   });
 
 
@@ -230,7 +257,7 @@ io.on('connection', (socket) => {
     delete activeSockets[userId];
     
     // Log connected users when a user is removed
-    logConnectedUsers();
+    logConnectedUsersR();
 
     // Emit the updated list of connected users to all sockets
     io.emit('connected-users', Object.keys(activeSockets));
